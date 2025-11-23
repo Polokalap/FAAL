@@ -13,4 +13,3 @@ Please open an issue! If it's urgent, please DM me on signal: polokalap.01
 # How to install
 
 - Arch Linux: `yay -S faal`
-- Without an AUR helper: `curl https://raw.githubusercontent.com/Polokalap/FAAL/refs/heads/master/PKGBUILD -o 'PKGBUILD' && makepkg -si`
