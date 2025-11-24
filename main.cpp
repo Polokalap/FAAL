@@ -61,6 +61,7 @@ struct EntryData {
 
 int cursor = 0;
 unordered_map<string, string> apps;
+unordered_map<string, string> icons;
 unordered_map<string, vector<string>> keywords;
 vector<string> names;
 vector<string> currentAppNames;
@@ -193,6 +194,21 @@ static void reload(GtkWidget *vbox) {
         gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 5);
         gtk_widget_show(label);
 
+        // GtkIconTheme *theme = gtk_icon_theme_get_default();
+        // GtkIconInfo *info  = gtk_icon_theme_lookup_icon(theme, name.c_str(), 16, GTK_ICON_LOOKUP_DIR_LTR);
+        //
+        // if (info) {
+        //
+        //     const char *path = gtk_icon_info_get_filename(info);
+        //     GtkWidget *image = gtk_image_new_from_file(path);
+        //
+        //     gtk_box_pack_start(GTK_BOX(vbox), image, FALSE, FALSE, 5);
+        //     gtk_widget_show(image);
+        //
+        //     gtk_icon_info_free(info);
+        //
+        // }
+
         if (i == cursor) {
 
             GtkStyleContext *context = gtk_widget_get_style_context(label);
@@ -218,7 +234,7 @@ static void on_entry_changed(GtkEntry *entry, gpointer user_data) {
 
 }
 
-static void make_applications_list(fs::path path) {
+static void make_applications_list(fs::path path, string name) {
 
     for (const auto& entry : fs::directory_iterator(path)) {
 
@@ -271,6 +287,13 @@ static void make_applications_list(fs::path path) {
                         }
                     }
 
+                    if (line.starts_with("Icon=")) {
+
+                        string icon = line.substr(5);
+                        icons[names.back()] = icon;
+
+                    }
+
                     apps[names.back()] = exec_cmd;
 
                 }
@@ -279,7 +302,51 @@ static void make_applications_list(fs::path path) {
 
             file.close();
 
-            logger(INFO, "Recorded " + entry.path().string());
+            logger(INFO, "Recorded " + entry.path().string() + " from " + name);
+
+        } else if (entry.path().string().ends_with(".bfs")) {
+
+            ifstream file(entry.path());
+            string line;
+
+            while (getline(file, line)) {
+
+                if (line.starts_with("Name=")) {
+
+                    if (find(names.begin(), names.end(), line.substr(5)) == names.end()) {
+
+                        names.push_back(line.substr(5));
+
+                    }
+
+                }
+
+                if (line.starts_with("Keywords=")) {
+
+                    string keywordsLine = line.substr(9);
+                    size_t start = 0;
+                    size_t end = 0;
+
+                    while ((end = keywordsLine.find(';', start)) != string::npos) {
+                        string token = keywordsLine.substr(start, end - start);
+                        keywords[names.back()].push_back(token);
+                        start = end + 1;
+                    }
+
+                    if (start < keywordsLine.size()) {
+                        string token = keywordsLine.substr(start);
+                        keywords[names.back()].push_back(token);
+                    }
+
+                }
+
+            }
+
+            file.close();
+
+            apps[names.back()] = "faal " + entry.path().string();
+
+            logger(INFO, "Recorded " + entry.path().string() + " from " + name);
 
         }
 
@@ -334,6 +401,8 @@ static void open_app_on_cursor() {
 
     add_to_application_counter(currentAppNames[cursor]);
 
+    logger(INFO, cmd);
+
     pid_t pid = fork();
     if (pid == 0) {
 
@@ -349,11 +418,12 @@ static void open_app_on_cursor() {
 
         execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
         _exit(1);
+
     }
 
 }
 
-int main() {
+int main(int argc, char* argv[]) {
 
     logger(INFO, "Killing any already running processes");
 
@@ -366,6 +436,7 @@ int main() {
                       "done";
 
     system(cmd.c_str());
+
 
     const string home = std::getenv("HOME");
 
@@ -384,14 +455,16 @@ int main() {
 
             logger(INFO, "Writing config file.");
 
+            // yes I forgor to fix this in v1
+
             configFile << "window {"
-            "   border-radius: 15px;"
-            "   background-color: #00b7ff;"
-            "   font-family: 'Poppins', sans-serif;"
-            "}"
-            "label.cursor {"
-            "   background-color: #000000;"
-            "}"
+            "\n   border-radius: 15px;"
+            "\n   background-color: #00b7ff;"
+            "\n   font-family: 'Poppins', sans-serif;"
+            "\n}"
+            "\nlabel.cursor {"
+            "\n   background-color: #000000;"
+            "\n}"
             ;
 
             configFile.close();
@@ -408,10 +481,81 @@ int main() {
 
     }
 
-    make_applications_list("/usr/share/applications");
-    make_applications_list(fs::path(home) / ".local" / "share" / "applications");
+    fs::path scriptsPath = fs::path(home) / ".faal" / "scripts";
 
-    logger(INFO, "Registered " + std::to_string(names.size()) + " applications.");
+    if (!fs::exists(scriptsPath) || !fs::is_directory(scriptsPath) || !fs::exists(scriptsPath / "themes.bfs")) {
+
+        logger(WARN, "Script path doesn't exist.");
+        logger(INFO, "Creating Theme Script file.");
+
+        try {
+
+            fs::create_directories(scriptsPath);
+
+            ofstream scriptFile(scriptsPath / "themes.bfs");
+
+            logger(INFO, "Writing script file.");
+
+            scriptFile << "Name=Themes"
+            "\nOption=Name=Default;Exec=mkdir -p ~/.config/faal && [ -f ~/.config/faal/config.css ] && mv ~/.config/faal/config.css ~/.config/faal/config.css.bak"
+            "\nOption=Name=Polokalap;Exec=mkdir -p ~/.config/faal/themes && curl -f -L https://raw.githubusercontent.com/Polokalap/FAAL-configs/main/Polokalap/config.css -o ~/.config/faal/themes/config.css && cp ~/.config/faal/themes/config.css ~/.config/faal/config.css && curl -f -L https://raw.githubusercontent.com/Polokalap/FAAL-configs/main/Polokalap/bg.png -o ~/.config/faal/bg.png"
+            ;
+
+            scriptFile.close();
+
+            logger(INFO, "Script file created.");
+
+        } catch (fs::filesystem_error &e) {
+
+            logger(FATAL, "Error creating script file.");
+
+            return 1;
+
+        }
+
+    }
+
+    if (argc > 1) {
+
+        fs::path file_to_run = argv[1];
+
+        if (!fs::exists(file_to_run)) {
+
+            std::cerr << "File doesn't exist.\n";
+            return 1;
+
+        }
+
+        ifstream file(file_to_run);
+        string line;
+
+        while (getline(file, line)) {
+
+            if (line.starts_with("Option=")) {
+
+                string chopped_line = line.substr(12, line.length());
+
+                string name = chopped_line.substr(0, chopped_line.find(';'));
+
+                names.push_back(name);
+
+                apps[names.back()] = chopped_line.substr(name.length() + 6, chopped_line.length());
+
+            }
+
+        }
+
+        file.close();
+
+    } else {
+
+        make_applications_list("/usr/share/applications", "Applications");
+        make_applications_list(fs::path(home) / ".local" / "share" / "applications", "Applications");
+        make_applications_list(fs::path(home) / ".faal" / "scripts", "Built-in scripts");
+
+        logger(INFO, "Registered " + std::to_string(names.size()) + " applications.");
+
+    }
 
     gtk_init(0, nullptr);
 
@@ -421,9 +565,9 @@ int main() {
     gtk_css_provider_load_from_path(provider, (confPath / "config.css").c_str(), NULL);
     GdkScreen *screen = gtk_widget_get_screen(window);
     gtk_style_context_add_provider_for_screen(
-        screen,
-        GTK_STYLE_PROVIDER(provider),
-        GTK_STYLE_PROVIDER_PRIORITY_USER
+    screen,
+    GTK_STYLE_PROVIDER(provider),
+    GTK_STYLE_PROVIDER_PRIORITY_USER
     );
 
     gtk_layer_init_for_window(GTK_WINDOW(window));
@@ -437,8 +581,8 @@ int main() {
     GtkWidget *scrolled_window = gtk_scrolled_window_new(nullptr, nullptr);
     gtk_container_add(GTK_CONTAINER(window), scrolled_window);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
-                               GTK_POLICY_NEVER,
-                               GTK_POLICY_AUTOMATIC);
+    GTK_POLICY_NEVER,
+    GTK_POLICY_AUTOMATIC);
     gtk_widget_set_size_request(scrolled_window, 500, 700);
 
     gtk_window_set_keep_above(GTK_WINDOW(window), TRUE);
@@ -464,7 +608,7 @@ int main() {
 
     g_signal_connect(window, "key-press-event", G_CALLBACK(+[](GtkWidget *widget, GdkEventKey *event, gpointer data) -> gboolean {
 
-            GtkWidget *vbox = GTK_WIDGET(data);
+        GtkWidget *vbox = GTK_WIDGET(data);
 
         if (event->keyval == GDK_KEY_Up) {
             if (cursor > 0) {
@@ -481,6 +625,7 @@ int main() {
                 cursor++;
                 make_new_app_list();
                 reload(vbox);
+
             }
             return TRUE;
         }
