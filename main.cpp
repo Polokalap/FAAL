@@ -242,24 +242,31 @@ static void make_applications_list(fs::path path, string name) {
 
             ifstream file(entry.path());
             string line;
+            string currentName;
+            bool namePushed = false;
 
             while (getline(file, line)) {
 
-                string name;
-
                 if (line.starts_with("Name=")) {
 
-                    if (find(names.begin(), names.end(), line.substr(5)) != names.end()) break;
+                    currentName = line.substr(5);
 
-                    names.push_back(line.substr(5));
+                    if (currentName.empty())
+                        continue;
 
-                    name = line.substr(5);
+                    if (!namePushed && find(names.begin(), names.end(), currentName) == names.end()) {
+                        names.push_back(currentName);
+                        namePushed = true;
+                    }
+
+                    continue;
 
                 }
 
-                if (line.starts_with("Keywords=")) {
+                if (currentName.empty())
+                    continue;
 
-                    if (find(names.begin(), names.end(), name) != names.end()) break;
+                if (line.starts_with("Keywords=")) {
 
                     string keywordsLine = line.substr(9);
                     size_t start = 0;
@@ -267,20 +274,20 @@ static void make_applications_list(fs::path path, string name) {
 
                     while ((end = keywordsLine.find(';', start)) != string::npos) {
                         string token = keywordsLine.substr(start, end - start);
-                        keywords[names.back()].push_back(token);
+                        keywords[currentName].push_back(token);
                         start = end + 1;
                     }
 
                     if (start < keywordsLine.size()) {
                         string token = keywordsLine.substr(start);
-                        keywords[names.back()].push_back(token);
+                        keywords[currentName].push_back(token);
                     }
 
                 }
 
                 if (line.starts_with("Exec=")) {
 
-                    if (find(names.begin(), names.end(), name) != names.end()) break;
+                    if (!names.empty() && names.back() != currentName) break;
 
                     string exec_cmd = line.substr(5);
 
@@ -293,14 +300,13 @@ static void make_applications_list(fs::path path, string name) {
                         }
                     }
 
-                    if (line.starts_with("Icon=")) {
+                    apps[currentName] = exec_cmd;
 
-                        string icon = line.substr(5);
-                        icons[names.back()] = icon;
+                }
 
-                    }
+                if (line.starts_with("Icon=")) {
 
-                    apps[names.back()] = exec_cmd;
+                    icons[currentName] = line.substr(5);
 
                 }
 
@@ -314,6 +320,8 @@ static void make_applications_list(fs::path path, string name) {
 
             ifstream file(entry.path());
             string line;
+            string currentName;
+            bool namePushed = false;
 
             while (getline(file, line)) {
 
@@ -321,7 +329,17 @@ static void make_applications_list(fs::path path, string name) {
 
                     if (find(names.begin(), names.end(), line.substr(5)) == names.end()) {
 
-                        names.push_back(line.substr(5));
+                        currentName = line.substr(5);
+
+                        if (currentName.empty())
+                            continue;
+
+                        if (!namePushed) {
+                            names.push_back(currentName);
+                            namePushed = true;
+                        }
+
+                        continue;
 
                     }
 
@@ -335,13 +353,13 @@ static void make_applications_list(fs::path path, string name) {
 
                     while ((end = keywordsLine.find(';', start)) != string::npos) {
                         string token = keywordsLine.substr(start, end - start);
-                        keywords[names.back()].push_back(token);
+                        keywords[currentName].push_back(token);
                         start = end + 1;
                     }
 
                     if (start < keywordsLine.size()) {
                         string token = keywordsLine.substr(start);
-                        keywords[names.back()].push_back(token);
+                        keywords[currentName].push_back(token);
                     }
 
                 }
