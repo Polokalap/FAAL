@@ -245,17 +245,21 @@ static void make_applications_list(fs::path path, string name) {
 
             while (getline(file, line)) {
 
+                string name;
+
                 if (line.starts_with("Name=")) {
 
-                    if (find(names.begin(), names.end(), line.substr(5)) == names.end()) {
+                    if (find(names.begin(), names.end(), line.substr(5)) != names.end()) break;
 
-                        names.push_back(line.substr(5));
+                    names.push_back(line.substr(5));
 
-                    }
+                    name = line.substr(5);
 
                 }
 
                 if (line.starts_with("Keywords=")) {
+
+                    if (find(names.begin(), names.end(), name) != names.end()) break;
 
                     string keywordsLine = line.substr(9);
                     size_t start = 0;
@@ -275,6 +279,8 @@ static void make_applications_list(fs::path path, string name) {
                 }
 
                 if (line.starts_with("Exec=")) {
+
+                    if (find(names.begin(), names.end(), name) != names.end()) break;
 
                     string exec_cmd = line.substr(5);
 
