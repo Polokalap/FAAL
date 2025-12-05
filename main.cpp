@@ -626,7 +626,7 @@ int main(int argc, char* argv[]) {
     ifstream infile(confPath / "config.pcf");
     string line;
 
-    string loadedConfig;
+    fs::path loadedConfig;
 
     if (infile) {
 
@@ -636,23 +636,24 @@ int main(int argc, char* argv[]) {
 
             if (fs::exists(themePath / p)) {
 
-                loadedConfig = themePath / p.parent_path().string() / "config.css";
+                if (line == "default.css") loadedConfig = themePath / "default.css";
+                else loadedConfig = themePath / p.parent_path().string() / "config.css";
 
             } else {
 
-                loadedConfig = (themePath / "default.css").string();
+                loadedConfig = themePath / "default.css";
 
             }
 
         } else {
 
-            loadedConfig = (themePath / "default.css").string();
+            loadedConfig = themePath / "default.css";
 
         }
 
     } else {
 
-        loadedConfig = (themePath / "default.css").string();
+        loadedConfig = themePath / "default.css";
 
     }
 
