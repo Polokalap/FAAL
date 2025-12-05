@@ -563,9 +563,8 @@ int main(int argc, char* argv[]) {
             logger(INFO, "Writing script file.");
 
             scriptFile << "Name=Themes"
-            "\nOption=Name=Default;Exec=echo '~/.faal/themes/default.css' > ~/.config/faal/config.pcf"
-            "\nOption=Name=Meow;Exec=echo '~/.faal/themes/meow/config.css' > ~/.config/faal/config.pcf"
-            "\nOption=Name=Polokalap;Exec=echo '~/.faal/themes/Polokalap/config.css' > ~/.config/faal/config.pcf"
+            "\nOption=Name=Default;Exec=echo 'themes/default.css' > ~/.config/faal/config.pcf"
+            "\nOption=Name=Polokalap;Exec=echo 'themes/Polokalap/config.css' > ~/.config/faal/config.pcf"
             ;
 
             scriptFile.close();
