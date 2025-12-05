@@ -563,8 +563,8 @@ int main(int argc, char* argv[]) {
             logger(INFO, "Writing script file.");
 
             scriptFile << "Name=Themes"
-            "\nOption=Name=Default;Exec=echo 'themes/default.css' > ~/.config/faal/config.pcf"
-            "\nOption=Name=Polokalap;Exec=echo 'themes/Polokalap/config.css' > ~/.config/faal/config.pcf"
+            "\nOption=Name=Default;Exec=echo 'default.css' > ~/.config/faal/config.pcf"
+            "\nOption=Name=Polokalap;Exec=echo 'Polokalap/config.css' > ~/.config/faal/config.pcf"
             ;
 
             scriptFile.close();
