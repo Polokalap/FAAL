@@ -510,14 +510,14 @@ int main(int argc, char* argv[]) {
 
     if (!fs::exists(themePath) || !fs::is_directory(themePath) || !fs::exists(themePath / "default.css")) {
 
-        download_themes();
-
         logger(WARN, "Config path doesn't exist.");
         logger(INFO, "Creating config file.");
 
         try {
 
             fs::create_directory(themePath);
+
+            download_themes();
 
             ofstream configFile(themePath / "default.css");
 
