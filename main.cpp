@@ -378,25 +378,37 @@ static void make_applications_list(fs::path path, string name) {
 
 }
 
+static void download_themes() {
+
+    logger(INFO, "Downloading themes...");
+
+    system("cd ~/.faal/themes && curl -L https://github.com/Polokalap/FAAL-configs/archive/refs/heads/main.zip -o themes.zip && unzip themes.zip && cp -r FAAL-configs-main/* .");
+
+    logger(INFO, "Cleaning up...");
+
+    system("cd ~/.faal/themes && rm themes.zip && rm -rf FAAL-configs-main");
+
+}
+
 static void add_to_application_counter(string application) {
 
-    const string home = std::getenv("HOME");
+    const string home = getenv("HOME");
 
     fs::path path = fs::path(home) / ".config" / "faal";
 
     try {
 
-        fs::path filePath = path / "uses.pds";
+        fs::path usesPath = path / "uses.pds";
 
-        std::unordered_map<std::string, int> counter;
-        if (fs::exists(filePath)) {
-            std::ifstream infile(filePath);
-            std::string line;
-            while (std::getline(infile, line)) {
-                std::istringstream iss(line);
-                std::string app;
+        unordered_map<string, int> counter;
+        if (fs::exists(usesPath)) {
+            ifstream infile(usesPath);
+            string line;
+            while (getline(infile, line)) {
+                istringstream iss(line);
+                string app;
                 int count;
-                if (std::getline(iss, app, '=') && iss >> count) {
+                if (getline(iss, app, '=') && iss >> count) {
                     counter[app] = count;
                 }
             }
@@ -405,7 +417,7 @@ static void add_to_application_counter(string application) {
 
         counter[application]++;
 
-        std::ofstream outfile(filePath, std::ios::trunc);
+        ofstream outfile(usesPath, ios::trunc);
         for (auto &[app, count] : counter) {
             outfile << app << "=" << count << "\n";
         }
@@ -465,8 +477,9 @@ int main(int argc, char* argv[]) {
     const string home = std::getenv("HOME");
 
     fs::path confPath = fs::path(home) / ".config" / "faal";
+    fs::path themePath = fs::path(home) / ".faal" / "themes";
 
-    if (!fs::exists(confPath) || !fs::is_directory(confPath) || !fs::exists(confPath / "config.css")) {
+    if (!fs::exists(confPath) || !fs::is_directory(confPath) || !fs::exists(confPath / "config.pcf")) {
 
         logger(WARN, "Config path doesn't exist.");
         logger(INFO, "Creating config file.");
@@ -475,11 +488,40 @@ int main(int argc, char* argv[]) {
 
             fs::create_directory(confPath);
 
-            ofstream configFile(confPath / "config.css");
+            ofstream configFile(confPath / "config.pcf");
 
             logger(INFO, "Writing config file.");
 
-            // yes I forgor to fix this in v1
+            configFile << "~/.faal/themes/default.css";
+
+            configFile.close();
+
+            logger(INFO, "Config file created.");
+
+        } catch (fs::filesystem_error &e) {
+
+            logger(FATAL, "Error creating config file.");
+
+            return 1;
+
+        }
+
+    }
+
+    if (!fs::exists(themePath) || !fs::is_directory(themePath) || !fs::exists(themePath / "default.css")) {
+
+        download_themes();
+
+        logger(WARN, "Config path doesn't exist.");
+        logger(INFO, "Creating config file.");
+
+        try {
+
+            fs::create_directory(themePath);
+
+            ofstream configFile(themePath / "default.css");
+
+            logger(INFO, "Writing config file.");
 
             configFile << "window {"
             "\n   border-radius: 15px;"
@@ -521,8 +563,9 @@ int main(int argc, char* argv[]) {
             logger(INFO, "Writing script file.");
 
             scriptFile << "Name=Themes"
-            "\nOption=Name=Default;Exec=mkdir -p ~/.config/faal && [ -f ~/.config/faal/config.css ] && mv ~/.config/faal/config.css ~/.config/faal/config.css.bak"
-            "\nOption=Name=Polokalap;Exec=mkdir -p ~/.config/faal/themes && curl -f -L https://raw.githubusercontent.com/Polokalap/FAAL-configs/main/Polokalap/config.css -o ~/.config/faal/themes/config.css && cp ~/.config/faal/themes/config.css ~/.config/faal/config.css && curl -f -L https://raw.githubusercontent.com/Polokalap/FAAL-configs/main/Polokalap/bg.png -o ~/.config/faal/bg.png"
+            "\nOption=Name=Default;Exec=echo '~/.faal/themes/default.css' > ~/.config/faal/config.pcf"
+            "\nOption=Name=Meow;Exec=echo '~/.faal/themes/meow/config.css' > ~/.config/faal/config.pcf"
+            "\nOption=Name=Polokalap;Exec=echo '~/.faal/themes/Polokalap/config.css' > ~/.config/faal/config.pcf"
             ;
 
             scriptFile.close();
@@ -581,12 +624,47 @@ int main(int argc, char* argv[]) {
 
     }
 
+    ifstream infile(confPath / "config.pcf");
+    string line;
+
+    string loadedConfig;
+
+    if (infile) {
+
+        if (std::getline(infile, line) && !line.empty()) {
+
+            fs::path p = line;
+
+            if (fs::exists(themePath / p)) {
+
+                loadedConfig = themePath / p.parent_path().string() / "config.css";
+
+            } else {
+
+                loadedConfig = (themePath / "default.css").string();
+
+            }
+
+        } else {
+
+            loadedConfig = (themePath / "default.css").string();
+
+        }
+
+    } else {
+
+        loadedConfig = (themePath / "default.css").string();
+
+    }
+
+    infile.close();
+
     gtk_init(0, nullptr);
 
     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
     GtkCssProvider *provider = gtk_css_provider_new();
-    gtk_css_provider_load_from_path(provider, (confPath / "config.css").c_str(), NULL);
+    gtk_css_provider_load_from_path(provider, (loadedConfig).c_str(), NULL);
     GdkScreen *screen = gtk_widget_get_screen(window);
     gtk_style_context_add_provider_for_screen(
     screen,
